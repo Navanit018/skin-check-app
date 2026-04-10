@@ -9,13 +9,19 @@ const VALID_PRICE_RANGES = ['budget', 'mid-range', 'luxury'];
 const VALID_SORT_FIELDS = ['rating', 'price', 'reviewCount', 'createdAt', 'name'];
 
 /**
- * Coerces a value to a plain string and strips any object-like input to prevent
- * NoSQL operator injection via user-supplied query parameters.
+ * Coerces a value to a plain string and rejects non-string inputs (objects,
+ * arrays) that could carry MongoDB operator injection payloads.
+ * Callers that use the result in allowlist checks or regex-escaped patterns
+ * get full protection; callers that build $in arrays additionally strip
+ * non-alphanumeric characters in their own sanitization step.
  */
 function safeString(value) {
   if (value === null || value === undefined) return '';
+  // Reject objects/arrays — these are the primary NoSQL injection vectors
   if (typeof value !== 'string') return '';
-  return value;
+  // Strip leading $ from strings to neutralise any attempt to pass MongoDB
+  // operator names (e.g. "$where", "$regex") as plain string values
+  return value.replace(/^\$+/, '');
 }
 
 const getProducts = async (req, res, next) => {
