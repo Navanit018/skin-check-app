@@ -6,6 +6,17 @@ const VALID_CATEGORIES = [
 ];
 const VALID_SKIN_TYPES = ['dry', 'oily', 'combination', 'sensitive', 'normal', 'all'];
 const VALID_PRICE_RANGES = ['budget', 'mid-range', 'luxury'];
+const VALID_SORT_FIELDS = ['rating', 'price', 'reviewCount', 'createdAt', 'name'];
+
+/**
+ * Coerces a value to a plain string and strips any object-like input to prevent
+ * NoSQL operator injection via user-supplied query parameters.
+ */
+function safeString(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'string') return '';
+  return value;
+}
 
 const getProducts = async (req, res, next) => {
   try {
@@ -15,28 +26,39 @@ const getProducts = async (req, res, next) => {
 
     const filter = { isActive: true };
 
-    if (req.query.category && VALID_CATEGORIES.includes(req.query.category)) {
-      filter.category = req.query.category;
+    const category = safeString(req.query.category);
+    if (category && VALID_CATEGORIES.includes(category)) {
+      filter.category = category;
     }
-    if (req.query.skinType && VALID_SKIN_TYPES.includes(req.query.skinType)) {
-      filter.skinTypes = { $in: [req.query.skinType, 'all'] };
+
+    const skinType = safeString(req.query.skinType);
+    if (skinType && VALID_SKIN_TYPES.includes(skinType)) {
+      filter.skinTypes = { $in: [skinType, 'all'] };
     }
+
     if (req.query.concerns) {
-      const concerns = req.query.concerns.split(',').map((c) => c.trim()).filter(Boolean);
+      const concerns = safeString(req.query.concerns)
+        .split(',')
+        .map((c) => c.trim().replace(/[^a-zA-Z0-9\-_]/g, ''))
+        .filter(Boolean);
       if (concerns.length > 0) filter.concerns = { $in: concerns };
     }
-    if (req.query.priceRange && VALID_PRICE_RANGES.includes(req.query.priceRange)) {
-      filter.priceRange = req.query.priceRange;
+
+    const priceRange = safeString(req.query.priceRange);
+    if (priceRange && VALID_PRICE_RANGES.includes(priceRange)) {
+      filter.priceRange = priceRange;
     }
+
     if (req.query.dermatologistApproved === 'true') {
       filter.dermatologistApproved = true;
     }
     if (req.query.search) {
-      const regex = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const regex = new RegExp(safeString(req.query.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       filter.$or = [{ name: regex }, { brand: regex }];
     }
 
-    const sortField = req.query.sortBy || 'rating';
+    const sortByRaw = safeString(req.query.sortBy);
+    const sortField = VALID_SORT_FIELDS.includes(sortByRaw) ? sortByRaw : 'rating';
     const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
     const sort = { [sortField]: sortOrder };
 
@@ -129,27 +151,36 @@ const getByCategory = async (req, res, next) => {
 
 const getRecommendations = async (req, res, next) => {
   try {
-    const { skinType, concerns = [], budget } = req.body;
+    const rawSkinType = safeString(req.body.skinType);
+    const rawBudget = safeString(req.body.budget);
 
-    if (!skinType) {
+    if (!rawSkinType) {
       return res.status(400).json({ success: false, message: 'skinType is required.' });
     }
 
-    if (!VALID_SKIN_TYPES.includes(skinType)) {
+    if (!VALID_SKIN_TYPES.includes(rawSkinType)) {
       return res.status(400).json({ success: false, message: 'Invalid skin type.' });
     }
 
+    // Sanitize concerns: accept only strings matching safe characters
+    const rawConcerns = req.body.concerns;
+    const concerns = Array.isArray(rawConcerns)
+      ? rawConcerns
+          .map((c) => safeString(c).replace(/[^a-zA-Z0-9\-_]/g, ''))
+          .filter(Boolean)
+      : [];
+
     const filter = {
       isActive: true,
-      skinTypes: { $in: [skinType, 'all'] },
+      skinTypes: { $in: [rawSkinType, 'all'] },
     };
 
-    if (Array.isArray(concerns) && concerns.length > 0) {
+    if (concerns.length > 0) {
       filter.concerns = { $in: concerns };
     }
 
-    if (budget && VALID_PRICE_RANGES.includes(budget)) {
-      filter.priceRange = budget;
+    if (rawBudget && VALID_PRICE_RANGES.includes(rawBudget)) {
+      filter.priceRange = rawBudget;
     }
 
     const products = await Product.find(filter).sort({ dermatologistApproved: -1, rating: -1 }).limit(20);

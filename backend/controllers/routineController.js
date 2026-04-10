@@ -1,10 +1,18 @@
 const Routine = require('../models/Routine');
 const Assessment = require('../models/Assessment');
+const mongoose = require('mongoose');
 const { generateRoutine } = require('../utils/routineGenerator');
 
 const createRoutine = async (req, res, next) => {
   try {
-    const { name, description, assessmentId, morning, evening } = req.body;
+    const { name, description, morning, evening } = req.body;
+
+    // Validate assessmentId is a well-formed ObjectId string before any DB query
+    const rawAssessmentId = req.body.assessmentId;
+    const assessmentId =
+      rawAssessmentId && mongoose.Types.ObjectId.isValid(String(rawAssessmentId))
+        ? String(rawAssessmentId)
+        : null;
 
     if (!name || name.trim().length === 0) {
       return res.status(400).json({ success: false, message: 'Routine name is required.' });

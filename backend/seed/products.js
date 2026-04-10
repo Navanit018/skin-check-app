@@ -86,7 +86,7 @@ const products = [
     category: 'cleanser',
     description:
       'A mild, non-irritating cleanser that effectively removes dirt and excess oil without stripping moisture. Suitable for all skin types including sensitive. The dermatologist-recommended formula maintains the skin\'s natural pH.',
-    ingredients: ['Water', 'Cetyl Alcohol', 'Propylene Glycol', 'Sodium Lauryl Sulfate', 'Parabens-Free Base'],
+    ingredients: ['Water', 'Cetyl Alcohol', 'Propylene Glycol', 'Sodium Lauryl Sulfate', 'Polyoxyl 40 Stearate'],
     skinTypes: ['all'],
     concerns: ['sensitivity', 'dryness', 'redness'],
     price: 12.49,

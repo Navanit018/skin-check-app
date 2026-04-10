@@ -4,6 +4,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -14,6 +16,10 @@ const routineRoutes = require('./routes/routines');
 const profileRoutes = require('./routes/profile');
 
 const app = express();
+
+// Ensure upload directory exists before handling any requests
+const uploadsDir = path.join(__dirname, 'uploads', 'avatars');
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 connectDB();
 
